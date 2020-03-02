@@ -11,40 +11,91 @@ template <class Tag>
 class TDataFlow
 {
 private: // types
+    using Self = TDataFlow<Tag>;
+
+    using ClearFunc = std::function<void()>;
+
     template <class T>
     using HandlerFunc = std::function<void(const T &)>;
 
-public: // methods
-    template <class T, class F>
-    static void registerDataHandler(F &&func)
+    template <class T>
+    struct Storage
     {
-        handlers<T>().emplace_back(std::forward<F>(func));
+        std::vector<HandlerFunc<T>> handlers;
+        bool initialized{false};
+    };
+
+public: // methods
+    static std::shared_ptr<Self> create()
+    {
+        if (s_instance_wptr.expired())
+        {
+            auto instance = std::shared_ptr<Self>{new Self};
+            s_instance_wptr = instance;
+            return instance;
+        }
+        else
+        {
+            return s_instance_wptr.lock();
+        }
+    }
+
+    ~TDataFlow()
+    {
+        for (const auto &func : m_clear_funcs)
+        {
+            func();
+        }
+    }
+
+    template <class T, class F>
+    void registerDataHandler(F &&func)
+    {
+        if (!storage<T>().initialized)
+        {
+            m_clear_funcs.emplace_back([]() {
+                storage<T>().handlers.clear();
+                storage<T>().initialized = false;
+            });
+            storage<T>().initialized = true;
+        }
+
+        storage<T>().handlers.emplace_back(std::forward<F>(func));
     }
 
     template <class T>
-    static void send(const T &data)
+    void send(const T &data)
     {
-        for (const auto &handler : handlers<T>())
+        for (const auto &handler : storage<T>().handlers)
         {
             handler(data);
         }
     }
 
 private: // methods
+    explicit TDataFlow() = default;
+
     template <class T>
-    static auto &handlers()
+    static auto &storage()
     {
-        return s_handlers<std::decay_t<T>>;
+        return s_storage<std::decay_t<T>>;
     }
 
 private: // fields
     template <class T>
-    static std::vector<HandlerFunc<T>> s_handlers;
+    static Storage<T> s_storage;
+
+    static std::weak_ptr<Self> s_instance_wptr;
+
+    std::vector<ClearFunc> m_clear_funcs;
 };
 
 template <class Tag>
 template <class T>
-std::vector<typename TDataFlow<Tag>::template HandlerFunc<T>> TDataFlow<Tag>::s_handlers;
+typename TDataFlow<Tag>::template Storage<T> TDataFlow<Tag>::s_storage;
+
+template <class Tag>
+std::weak_ptr<TDataFlow<Tag>> TDataFlow<Tag>::s_instance_wptr;
 
 struct DataFlowTag
 {
@@ -55,7 +106,7 @@ using DataFlowPtr = std::shared_ptr<CDataFlow>;
 
 inline DataFlowPtr makeDataFlow()
 {
-    return std::make_shared<CDataFlow>();
+    return CDataFlow::create();
 }
 
 } // namespace DataFlowDemo
