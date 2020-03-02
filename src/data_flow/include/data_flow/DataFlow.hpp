@@ -7,7 +7,8 @@
 
 namespace DataFlowDemo {
 
-class CDataFlow
+template <class Tag>
+class TDataFlow
 {
 private: // types
     template <class T>
@@ -41,9 +42,15 @@ private: // fields
     static std::vector<HandlerFunc<T>> s_handlers;
 };
 
+template <class Tag>
 template <class T>
-std::vector<CDataFlow::HandlerFunc<T>> CDataFlow::s_handlers;
+std::vector<typename TDataFlow<Tag>::template HandlerFunc<T>> TDataFlow<Tag>::s_handlers;
 
+struct DataFlowTag
+{
+};
+
+using CDataFlow = TDataFlow<DataFlowTag>;
 using DataFlowPtr = std::shared_ptr<CDataFlow>;
 
 inline DataFlowPtr makeDataFlow()
