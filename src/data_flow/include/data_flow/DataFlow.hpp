@@ -3,10 +3,10 @@
 #include <cassert>
 #include <functional>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <type_traits>
 #include <typeindex>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -75,7 +75,7 @@ public: // methods
     }
 
 private: // fields
-    std::map<std::type_index, std::vector<std::unique_ptr<IHandler>>> m_handlers;
+    std::unordered_map<std::type_index, std::vector<std::unique_ptr<IHandler>>> m_handlers;
 };
 
 using DataFlowPtr = std::shared_ptr<CDataFlow>;
